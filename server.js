@@ -23,7 +23,8 @@ app.post('/api/signup', async (req, res) => {
 
     user = await User.create({ name, mobile, dob });
 
-    res.json({ success: true, message: "User registered successfully" });
+    res.status(200).json({ success: true, message: 'Signup successful' });
+
   } catch (error) {
     console.error(error.message);
     res.status(500).send("Server Error");
