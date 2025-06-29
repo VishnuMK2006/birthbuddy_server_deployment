@@ -1,151 +1,150 @@
 const express = require('express');
 const bodyParser = require('body-parser');
 const cors = require('cors');
-const { connectToMongo, User } = require('./db');
+const { v4: uuidv4 } = require('uuid');
+
+const connectToMongo = require('./db');
+const User = require('./models/User');
+const Group = require('./models/Group');
 
 connectToMongo();
 
 const app = express();
-const port = 5000;
-
 app.use(cors());
 app.use(bodyParser.json());
 
-/* -------------------------- SIGNUP -------------------------- */
+/* ---------------- AUTH ---------------- */
+
+// Signup
 app.post('/api/signup', async (req, res) => {
+  const { name, mobile, dob } = req.body;
   try {
-    const { name, mobile, dob, groupType = "public", createdBy = null } = req.body;
-
     let user = await User.findOne({ mobile });
-    if (user) {
-      return res.status(400).json({ error: "User with this mobile already exists" });
-    }
+    if (user) return res.status(400).json({ message: 'User already exists' });
 
-    user = await User.create({ name, mobile, dob, groupType, createdBy });
-
-    res.status(200).json({ success: true, message: 'Signup successful', user });
-
-  } catch (error) {
-    console.error(error.message);
-    res.status(500).send("Server Error");
+    user = new User({ name, mobile, dob });
+    await user.save();
+    res.json({ message: 'Signup successful', user });
+  } catch (err) {
+    res.status(500).json({ message: 'Server error' });
   }
 });
 
-/* -------------------------- LOGIN -------------------------- */
+// Login
 app.post('/api/login', async (req, res) => {
   const { mobile, dob } = req.body;
-
   try {
-    let user = await User.findOne({ mobile });
-    if (!user) {
-      return res.status(400).json({ error: "User not found" });
-    }
-
-    if (dob !== user.dob) {
-      return res.status(400).json({ error: "Invalid date of birth" });
-    }
-
-    res.json({ success: true, message: "Login successful", user });
-  } catch (error) {
-    console.error(error.message);
-    res.status(500).send("Server Error");
-  }
-});
-
-/* ---------------------- ADD TO PRIVATE GROUP ---------------------- */
-app.post('/api/private/add', async (req, res) => {
-  try {
-    const { name, mobile, dob, createdBy } = req.body;
-
-    const existing = await User.findOne({ mobile });
-    if (existing) {
-      return res.status(400).json({ error: 'User already exists' });
-    }
-
-    const user = await User.create({
-      name,
-      mobile,
-      dob,
-      groupType: 'private',
-      createdBy
-    });
-
-    res.json({ success: true, message: 'User added to private group', user });
+    const user = await User.findOne({ mobile, dob });
+    if (!user) return res.status(401).json({ message: 'Invalid credentials' });
+    res.json({ message: 'Login successful', user });
   } catch (err) {
-    console.error(err.message);
-    res.status(500).send("Server Error");
+    res.status(500).json({ message: 'Server error' });
   }
 });
 
-/* ---------------------- JOIN PUBLIC GROUP ---------------------- */
-app.post('/api/public/join', async (req, res) => {
+/* ---------------- GROUPS ---------------- */
+
+// Create Public Group
+app.post('/api/groups/create', async (req, res) => {
+  const { name, userId } = req.body;
   try {
-    const { name, mobile, dob, invitedBy } = req.body;
-
-    const existing = await User.findOne({ mobile });
-    if (existing) {
-      return res.status(400).json({ error: 'User already exists' });
-    }
-
-    const user = await User.create({
+    const inviteCode = uuidv4();
+    const group = new Group({
       name,
-      mobile,
-      dob,
-      groupType: 'public',
-      createdBy: invitedBy
+      type: 'public',
+      createdBy: userId,
+      inviteCode,
+      members: [{ userId, role: 'admin' }]
     });
 
-    res.json({ success: true, message: 'Joined public group successfully', user });
+    await group.save();
+
+    await User.findByIdAndUpdate(userId, { $push: { groups: group._id } });
+
+    res.json({ message: 'Group created', group });
   } catch (err) {
-    console.error(err.message);
-    res.status(500).send("Server Error");
+    res.status(500).json({ message: 'Server error' });
   }
 });
 
-/* ---------------------- TODAY'S BIRTHDAYS ---------------------- */
-app.get('/api/today/:mobile', async (req, res) => {
+// Get Invite Link
+app.get('/api/groups/:id/invite-link', async (req, res) => {
   try {
-    const today = new Date();
-    const mmdd = `${today.getMonth() + 1}`.padStart(2, '0') + '-' + `${today.getDate()}`.padStart(2, '0');
+    const group = await Group.findById(req.params.id);
+    if (!group) return res.status(404).json({ message: 'Group not found' });
 
-    const all = await User.find();
-
-    const birthdaysToday = all.filter(user => {
-      if (!user.dob || typeof user.dob !== 'string' || !user.dob.includes('-')) return false;
-      const [year, month, day] = user.dob.split('-');
-      return `${month}-${day}` === mmdd;
-    });
-
-    res.json({ success: true, data: birthdaysToday });
-  } catch (error) {
-    console.error("Error in /api/today:", error.message);
-    res.status(500).send("Server Error");
+    res.json({ link: `http://localhost:5000/api/groups/join/${group.inviteCode}` });
+  } catch (err) {
+    res.status(500).json({ message: 'Server error' });
   }
 });
 
-/* ---------------------- GET PUBLIC GROUP USERS ---------------------- */
-app.get('/api/public', async (req, res) => {
+// Join Group via Invite Link
+app.post('/api/groups/join/:code', async (req, res) => {
+  const { userId } = req.body;
   try {
-    const users = await User.find({ groupType: 'public' });
-    res.json({ success: true, data: users });
-  } catch (error) {
-    console.error(error.message);
-    res.status(500).send("Server Error");
+    const group = await Group.findOne({ inviteCode: req.params.code });
+    if (!group || group.type !== 'public')
+      return res.status(404).json({ message: 'Invalid invite link' });
+
+    const alreadyMember = group.members.find(m => m.userId.toString() === userId);
+    if (alreadyMember) return res.status(400).json({ message: 'Already a member' });
+
+    group.members.push({ userId, role: 'member' });
+    await group.save();
+
+    await User.findByIdAndUpdate(userId, { $push: { groups: group._id } });
+
+    res.json({ message: 'Joined group successfully', group });
+  } catch (err) {
+    res.status(500).json({ message: 'Server error' });
   }
 });
 
-/* ---------------------- GET PRIVATE GROUP USERS ---------------------- */
-app.get('/api/private/:mobile', async (req, res) => {
+// Admin Adds Member by Mobile
+app.post('/api/groups/:id/add-user', async (req, res) => {
+  const { userMobile, adminId } = req.body;
   try {
-    const { mobile } = req.params;
-    const users = await User.find({ groupType: 'private', createdBy: mobile });
-    res.json({ success: true, data: users });
-  } catch (error) {
-    console.error(error.message);
-    res.status(500).send("Server Error");
+    const group = await Group.findById(req.params.id);
+    const isAdmin = group.members.find(
+      m => m.userId.toString() === adminId && m.role === 'admin'
+    );
+    if (!isAdmin) return res.status(403).json({ message: 'Not an admin' });
+
+    const user = await User.findOne({ mobile: userMobile });
+    if (!user) return res.status(404).json({ message: 'User not found' });
+
+    const alreadyMember = group.members.find(m => m.userId.toString() === user._id.toString());
+    if (alreadyMember) return res.status(400).json({ message: 'Already a member' });
+
+    group.members.push({ userId: user._id, role: 'member' });
+    await group.save();
+
+    user.groups.push(group._id);
+    await user.save();
+
+    res.json({ message: 'User added to group', group });
+  } catch (err) {
+    res.status(500).json({ message: 'Server error' });
   }
 });
 
-app.listen(port, () => {
-  console.log(`Server running at http://localhost:${port}`);
+// Leave Group
+app.post('/api/groups/:id/leave', async (req, res) => {
+  const { userId } = req.body;
+  try {
+    const group = await Group.findById(req.params.id);
+    group.members = group.members.filter(m => m.userId.toString() !== userId);
+    await group.save();
+
+    await User.findByIdAndUpdate(userId, { $pull: { groups: group._id } });
+
+    res.json({ message: 'Left group successfully' });
+  } catch (err) {
+    res.status(500).json({ message: 'Server error' });
+  }
 });
+
+/* ---------------- SERVER START ---------------- */
+const PORT = 5000;
+app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
