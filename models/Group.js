@@ -1,10 +1,10 @@
 const mongoose = require('mongoose');
 
 const groupSchema = new mongoose.Schema({
-  name: String,
-  type: { type: String, enum: ['public', 'private'], default: 'public' },
-  createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
-  inviteCode: String,
+  name: { type: String, required: true },
+  type: { type: String, enum: ['public'], default: 'public' },
+  createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+  inviteCode: { type: String, required: true },
   members: [
     {
       userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },

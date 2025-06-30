@@ -1,10 +1,10 @@
 const mongoose = require('mongoose');
 
 const userSchema = new mongoose.Schema({
-  name: String,
-  mobile: { type: String, unique: true },
-  dob: Date,
-  groups: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Group' }]
+  name: { type: String, required: true },
+  mobile: { type: String, required: true, unique: true },
+  dob: { type: Date, required: true },
+  groups: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Group' }] // public groups only
 });
 
 module.exports = mongoose.model('User', userSchema);
