@@ -1,8 +1,8 @@
 const mongoose = require('mongoose');
 
 const connectToMongo = async () => {
-  //const mongoURI = "mongodb+srv://vishnu:tvmk2006@firstsample.c9yehfj.mongodb.net/?retryWrites=true&w=majority&appName=firstsample";
-  const mongoURI = "mongodb://localhost:27017/birthbuddy";
+  const mongoURI = "mongodb+srv://vishnu:tvmk2006@firstsample.c9yehfj.mongodb.net/?retryWrites=true&w=majority&appName=firstsample";
+  //const mongoURI = "mongodb://localhost:27017/birthbuddy";
   try {
     await mongoose.connect(mongoURI);
     console.log('MongoDB connected');
