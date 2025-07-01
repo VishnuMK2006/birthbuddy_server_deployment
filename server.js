@@ -43,31 +43,49 @@ app.post('/api/login', async (req, res) => {
 });
 
 // --------------------- TODAY'S BIRTHDAYS ---------------------
+
 app.get('/api/birthdays/today/:mobile', async (req, res) => {
   try {
-    const { mobile } = req.params;
+    const mobile  = req.params.mobile;
     const today = new Date();
     const day = today.getDate();
     const month = today.getMonth() + 1;
 
-    // Step 1: Get all public groups the user is part of
-    const groups = await Group.find({ members: mobile, type: 'public' });
+    // 1. Find current user to get their ID
+    const currentUser = await User.findOne({ mobile });
+    let publicUsers = [];
+    
+    if (currentUser) {
+      // 2. Get groups where user is a member (using ObjectID)
+      const groups = await Group.find({ 
+        "members.userId": currentUser._id, 
+        type: 'public' 
+      });
 
-    // Step 2: Get all members of those groups
-    const groupMemberMobiles = [...new Set(groups.flatMap(group => group.members))];
+      // 3. Extract all member IDs from groups
+      const memberUserIds = groups.flatMap(group => 
+        group.members.map(member => member.userId)
+      );
 
-    // Step 3: Fetch public users who are in same group and have birthday today
-    const publicUsers = await User.aggregate([
-      { $match: { mobile: { $in: groupMemberMobiles } } },
-      { $addFields: { day: { $dayOfMonth: "$dob" }, month: { $month: "$dob" } } },
-      { $match: { day, month } },
-      { $project: { name: 1, mobile: 1, dob: 1, source: { $literal: "public" } } }
-    ]);
+      // 4. Fetch public users in these groups with today's birthday
+      publicUsers = await User.aggregate([
+        { $match: { _id: { $in: memberUserIds } } },
+        { $addFields: { 
+          day: { $dayOfMonth: "$dob" }, 
+          month: { $month: "$dob" } 
+        }},
+        { $match: { day, month } },
+        { $project: { name: 1, mobile: 1, dob: 1, source: { $literal: "public" } } }
+      ]);
+    }
 
-    // Step 4: Fetch private users created by current user
+    // 5. Fetch private users (unchanged)
     const privateUsers = await PrivateUser.aggregate([
       { $match: { createdBy: mobile } },
-      { $addFields: { day: { $dayOfMonth: "$dob" }, month: { $month: "$dob" } } },
+      { $addFields: { 
+        day: { $dayOfMonth: "$dob" }, 
+        month: { $month: "$dob" } 
+      }},
       { $match: { day, month } },
       { $project: { name: 1, mobile: 1, dob: 1, source: { $literal: "private" } } }
     ]);
