@@ -43,25 +43,39 @@ app.post('/api/login', async (req, res) => {
 });
 
 // --------------------- TODAY'S BIRTHDAYS ---------------------
-app.get('/api/birthdays/today', async (req, res) => {
+app.get('/api/birthdays/today/:mobile', async (req, res) => {
   try {
+    const { mobile } = req.params;
     const today = new Date();
     const day = today.getDate();
     const month = today.getMonth() + 1;
 
+    // Step 1: Get all public groups the user is part of
+    const groups = await Group.find({ members: mobile, type: 'public' });
+
+    // Step 2: Get all members of those groups
+    const groupMemberMobiles = [...new Set(groups.flatMap(group => group.members))];
+
+    // Step 3: Fetch public users who are in same group and have birthday today
     const publicUsers = await User.aggregate([
+      { $match: { mobile: { $in: groupMemberMobiles } } },
       { $addFields: { day: { $dayOfMonth: "$dob" }, month: { $month: "$dob" } } },
       { $match: { day, month } },
       { $project: { name: 1, mobile: 1, dob: 1, source: { $literal: "public" } } }
     ]);
 
+    // Step 4: Fetch private users created by current user
     const privateUsers = await PrivateUser.aggregate([
+      { $match: { createdBy: mobile } },
       { $addFields: { day: { $dayOfMonth: "$dob" }, month: { $month: "$dob" } } },
       { $match: { day, month } },
       { $project: { name: 1, mobile: 1, dob: 1, source: { $literal: "private" } } }
     ]);
 
-    res.json({ count: publicUsers.length + privateUsers.length, birthdays: [...publicUsers, ...privateUsers] });
+    res.json({
+      count: publicUsers.length + privateUsers.length,
+      birthdays: [...publicUsers, ...privateUsers]
+    });
   } catch (err) {
     res.status(500).json({ message: 'Error fetching birthdays', error: err.message });
   }
