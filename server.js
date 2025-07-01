@@ -136,6 +136,17 @@ app.post('/api/privateuser', async (req, res) => {
   }
 });
 
+// --------------------- FETCH PUBLIC GROUPS FOR A USER ---------------------
+app.get('/api/public/groups/:userId', async (req, res) => {
+  try {
+    const groups = await Group.find({ 'members.userId': req.params.userId });
+    res.json(groups);
+  } catch (err) {
+    res.status(500).json({ message: 'Error fetching user groups', error: err.message });
+  }
+});
+
+
 // --------------------- PRIVATE GROUP CREATION / LIST ---------------------
 app.get('/api/private/creategroup/:userId', async (req, res) => {
   try {
