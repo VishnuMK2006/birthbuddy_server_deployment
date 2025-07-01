@@ -43,29 +43,23 @@ app.post('/api/login', async (req, res) => {
 });
 
 // --------------------- TODAY'S BIRTHDAYS ---------------------
-app.get('/api/birthdays/today/:mobile', async (req, res) => {
+app.get('/api/birthdays/today', async (req, res) => {
   try {
-    const { mobile } = req.params;
     const today = new Date();
     const day = today.getDate();
     const month = today.getMonth() + 1;
 
-    // 1. Query groups using dot notation for object-based members
-    const groups = await Group.find({ 
-      "members.mobile": mobile, 
-      type: 'public' 
-    });
+    const publicUsers = await User.aggregate([
+      { $addFields: { day: { $dayOfMonth: "$dob" }, month: { $month: "$dob" } } },
+      { $match: { day, month } },
+      { $project: { name: 1, mobile: 1, dob: 1, source: { $literal: "public" } } }
+    ]);
 
-    // 2. Extract mobile numbers from member objects
-    const groupMemberMobiles = [...new Set(
-      groups.flatMap(group => 
-        group.members.map(member => member.mobile)
-      )
-    )];
-
-    // 3. Rest of the code remains unchanged
-    const publicUsers = await User.aggregate([...]);
-    const privateUsers = await PrivateUser.aggregate([...]);
+    const privateUsers = await PrivateUser.aggregate([
+      { $addFields: { day: { $dayOfMonth: "$dob" }, month: { $month: "$dob" } } },
+      { $match: { day, month } },
+      { $project: { name: 1, mobile: 1, dob: 1, source: { $literal: "private" } } }
+    ]);
 
     res.json({ count: publicUsers.length + privateUsers.length, birthdays: [...publicUsers, ...privateUsers] });
   } catch (err) {
