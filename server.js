@@ -43,7 +43,6 @@ app.post('/api/login', async (req, res) => {
 });
 
 // --------------------- TODAY'S BIRTHDAYS ---------------------
-
 app.get('/api/birthdays/today/:mobile', async (req, res) => {
   try {
     const mobile  = req.params.mobile;
@@ -98,7 +97,6 @@ app.get('/api/birthdays/today/:mobile', async (req, res) => {
     res.status(500).json({ message: 'Error fetching birthdays', error: err.message });
   }
 });
-
 // --------------------- PUBLIC GROUP ---------------------
 app.get('/api/public/:groupId', async (req, res) => {
   try {
