@@ -97,7 +97,25 @@ app.get('/api/birthdays/today/:mobile', async (req, res) => {
     res.status(500).json({ message: 'Error fetching birthdays', error: err.message });
   }
 });
+
+//-----------------------Get user Obj id-------------------
+app.get('/api/user/:mobile', async (req, res) => {
+  try {
+    const user = await User.findOne({ mobile: req.params.mobile }, '_id');
+
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    res.json({ userId: user._id });
+  } catch (err) {
+    res.status(500).json({ message: 'Server error', error: err.message });
+  }
+});
+
+
 // --------------------- PUBLIC GROUP ---------------------
+
 app.get('/api/public/:groupId', async (req, res) => {
   try {
     const group = await Group.findById(req.params.groupId).populate('members.userId', 'name mobile dob');
