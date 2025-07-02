@@ -157,19 +157,20 @@ app.post('/api/privateuser', async (req, res) => {
 // --------------------- FETCH PUBLIC GROUPS FOR A USER ---------------------
 app.get('/api/public/groups/:userId', async (req, res) => {
   try {
+    const userId = new mongoose.Types.ObjectId(req.params.userId);
+
     const groups = await Group.find(
-      { 'members.userId': req.params.userId },
-      '_id' // Only select the _id field
+      { 'members.userId': userId },
+      '_id'
     );
 
-    // Extract only the _id values
     const groupIds = groups.map(group => group._id);
-
     res.json({ groupIds });
   } catch (err) {
     res.status(500).json({ message: 'Error fetching user group IDs', error: err.message });
   }
 });
+
 
 
 // --------------------- PRIVATE GROUP CREATION / LIST ---------------------
