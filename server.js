@@ -162,21 +162,36 @@ app.get('/api/private/:groupId', async (req, res) => {
     res.status(500).json({ message: 'Error fetching private group', error: err.message });
   }
 });
-// --------------------- PUBLIC USER ADD ---------------------
+// --------------------- private USER ADD ---------------------
 
 app.post('/api/privateuser', async (req, res) => {
   const { name, mobile, dob, createdBy } = req.body;
-  try {
-    const existing = await PrivateUser.findOne({ mobile, createdBy });
-    if (existing) return res.status(400).json({ message: 'Private user already exists for this creator' });
 
-    const user = new PrivateUser({ name, mobile, dob, createdBy });
-    await user.save();
-    res.json({ message: 'Private user created', user });
+  try {
+    const existingUser = await PrivateUser.findOne({ mobile, createdBy });
+
+    if (existingUser) {
+      return res.status(409).json({
+        success: false,
+        message: 'Private user already exists for this creator',
+        user: existingUser
+      });
+    }
+
+    const newUser = new PrivateUser({ name, mobile, dob, createdBy });
+    await newUser.save();
+
+    res.status(201).json({
+      success: true,
+      message: 'Private user created successfully',
+      user: newUser
+    });
   } catch (err) {
-    res.status(500).json({ message: 'Error creating private user', error: err.message });
+    console.error('[PrivateUser Create Error]', err.message);
+    res.status(500).json({ success: false, message: 'Error creating private user', error: err.message });
   }
 });
+
 
 // --------------------- FETCH PUBLIC GROUPS FOR A USER ---------------------
 app.get('/api/public/groups/:userId', async (req, res) => {
