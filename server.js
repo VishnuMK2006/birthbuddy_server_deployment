@@ -80,7 +80,7 @@ app.get('/api/birthdays/today/:mobile', async (req, res) => {
 
     // 5. Fetch private users (unchanged)
     const privateUsers = await PrivateUser.aggregate([
-      { $match: { createdBy: mobile } },
+      { $match: { createdBy: currentUser._id }  },
       { $addFields: { 
         day: { $dayOfMonth: "$dob" }, 
         month: { $month: "$dob" } 
