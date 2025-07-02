@@ -160,8 +160,13 @@ app.get('/api/public/groups/:userId', async (req, res) => {
     const userId = new mongoose.Types.ObjectId(req.params.userId);
 
     const groups = await Group.find(
-      { 'members.userId': userId },
-      '_id'
+      {
+        $or: [
+          { 'members.userId': userId },
+          { createdBy: userId }
+        ]
+      },
+      '_id' // return only group _id fields
     );
 
     const groupIds = groups.map(group => group._id);
@@ -170,6 +175,7 @@ app.get('/api/public/groups/:userId', async (req, res) => {
     res.status(500).json({ message: 'Error fetching user group IDs', error: err.message });
   }
 });
+
 
 
 
