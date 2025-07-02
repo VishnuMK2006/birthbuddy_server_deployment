@@ -97,6 +97,30 @@ app.get('/api/birthdays/today/:mobile', async (req, res) => {
     res.status(500).json({ message: 'Error fetching birthdays', error: err.message });
   }
 });
+//----------------------fetch all private users created by a specified user -----------------
+
+app.get('/api/private-users/:userId', async (req, res) => {
+  try {
+    const { userId } = req.params;
+
+    if (!mongoose.Types.ObjectId.isValid(userId)) {
+      return res.status(400).json({ error: "Invalid user ID format" });
+    }
+
+    const privateUsers = await PrivateUser.find({ createdBy: new mongoose.Types.ObjectId(userId) });
+
+    res.json({
+      success: true,
+      count: privateUsers.length,
+      users: privateUsers
+    });
+  } catch (err) {
+    console.error('[Fetch Private Users Error]', err.message);
+    res.status(500).json({ message: 'Error fetching private users', error: err.message });
+  }
+});
+
+
 
 //-----------------------Get user Obj id-------------------
 app.get('/api/user/:mobile', async (req, res) => {
