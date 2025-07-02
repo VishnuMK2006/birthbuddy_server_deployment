@@ -122,10 +122,24 @@ app.get('/api/private-users/:userId', async (req, res) => {
 
 
 
-//-----------------------Get user Obj id-------------------
+//-----------------------Get user Obj id public -------------------
 app.get('/api/user/:mobile', async (req, res) => {
   try {
     const user = await User.findOne({ mobile: req.params.mobile }, '_id');
+
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    res.json({ userId: user._id });
+  } catch (err) {
+    res.status(500).json({ message: 'Server error', error: err.message });
+  }
+});
+//-----------------------Get user Obj id private -------------------
+app.get('/api/private-user/:mobile', async (req, res) => {
+  try {
+    const user = await PrivateUser.findOne({ mobile: req.params.mobile }, '_id');
 
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
@@ -260,8 +274,8 @@ app.post('/api/private/add/:groupId/:userId', async (req, res) => {
 app.post('/api/public/creategroup', async (req, res) => {
   const { name, createdBy } = req.body;
   try {
-    const inviteCode = uuidv4();
-    const group = new Group({ name, createdBy, inviteCode });
+   // const inviteCode = uuidv4();
+    const group = new Group({ name, createdBy ,members:[{userId:createdBy}]});
     await group.save();
     res.json({ message: 'Public group created', group });
   } catch (err) {
