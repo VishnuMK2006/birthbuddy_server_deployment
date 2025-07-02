@@ -4,7 +4,7 @@ const bodyParser = require('body-parser');
 const cors = require('cors');
 const connectToMongo = require('./db');
 const { v4: uuidv4 } = require('uuid');
-
+const mongoose = require('mongoose');
 const User = require('./models/User');
 const Group = require('./models/Group');
 const PrivateUser = require('./models/PrivateUser');
