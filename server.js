@@ -157,10 +157,17 @@ app.post('/api/privateuser', async (req, res) => {
 // --------------------- FETCH PUBLIC GROUPS FOR A USER ---------------------
 app.get('/api/public/groups/:userId', async (req, res) => {
   try {
-    const groups = await Group.find({ 'members.userId': req.params.userId });
-    res.json(groups);
+    const groups = await Group.find(
+      { 'members.userId': req.params.userId },
+      '_id' // Only select the _id field
+    );
+
+    // Extract only the _id values
+    const groupIds = groups.map(group => group._id);
+
+    res.json({ groupIds });
   } catch (err) {
-    res.status(500).json({ message: 'Error fetching user groups', error: err.message });
+    res.status(500).json({ message: 'Error fetching user group IDs', error: err.message });
   }
 });
 
