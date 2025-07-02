@@ -1,3 +1,4 @@
+
 // server.js
 const express = require('express');
 const bodyParser = require('body-parser');
@@ -318,6 +319,41 @@ app.put('/api/public/edit/:groupId/:userId', async (req, res) => {
     res.status(500).json({ message: 'Error updating user', error: err.message });
   }
 });
+
+//Exit from public group endpoint
+
+app.post('/api/group/exit', async (req, res) => {
+  try {
+    const { groupId, userId } = req.body;
+
+    if (!mongoose.Types.ObjectId.isValid(groupId) || !mongoose.Types.ObjectId.isValid(userId)) {
+      return res.status(400).json({ message: "Invalid groupId or userId" });
+    }
+
+    const group = await Group.findById(groupId);
+    if (!group) {
+      return res.status(404).json({ message: "Group not found" });
+    }
+
+    // Remove user from members array
+    group.members = group.members.filter(
+      member => member.userId.toString() !== userId
+    );
+
+    // Optional: prevent creator from exiting their own group
+    if (group.createdBy.toString() === userId) {
+      return res.status(403).json({ message: "Group creator cannot leave the group" });
+    }
+
+    await group.save();
+    res.json({ success: true, message: "User removed from group", group });
+
+  } catch (err) {
+    console.error("[Exit Group Error]", err.message);
+    res.status(500).json({ message: "Error exiting group", error: err.message });
+  }
+});
+
 
 // --------------------- START SERVER ---------------------
 const PORT = 5000;
