@@ -310,17 +310,6 @@ app.put('/api/private/edit/:groupId/:userId', async (req, res) => {
 });
 
 // --------------------- EDIT PUBLIC USER ---------------------
-app.put('/api/public/edit/:groupId/:userId', async (req, res) => {
-  try {
-    const updated = await User.findByIdAndUpdate(req.params.userId, req.body, { new: true });
-    res.json({ message: 'User updated', user: updated });
-  } catch (err) {
-    res.status(500).json({ message: 'Error updating user', error: err.message });
-  }
-});
-
-//Exit from public group endpoint
-
 app.post('/api/group/exit', async (req, res) => {
   try {
     const { groupId, userId } = req.body;
@@ -334,16 +323,25 @@ app.post('/api/group/exit', async (req, res) => {
       return res.status(404).json({ message: "Group not found" });
     }
 
-    // Remove user from members array
+    // Remove the user from members array
     group.members = group.members.filter(
       member => member.userId.toString() !== userId
     );
 
-    // Optional: prevent creator from exiting their own group
-    if (group.createdBy.toString() === userId) {
-      return res.status(403).json({ message: "Group creator cannot leave the group" });
+    // If no members left, delete the group
+    if (group.members.length === 0) {
+      await group.deleteOne();
+      return res.json({ success: true, message: "You were the last member. Group deleted." });
     }
 
+    // If creator is trying to leave but members still exist
+    if (group.createdBy.toString() === userId && group.members.length > 0) {
+      return res.status(403).json({
+        message: "Creator cannot leave the group while other members are present"
+      });
+    }
+
+    // Save changes and respond
     await group.save();
     res.json({ success: true, message: "User removed from group", group });
 
@@ -352,6 +350,7 @@ app.post('/api/group/exit', async (req, res) => {
     res.status(500).json({ message: "Error exiting group", error: err.message });
   }
 });
+
 // --------------------- START SERVER ---------------------
 const PORT = 5000;
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
