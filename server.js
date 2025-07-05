@@ -1,4 +1,3 @@
-
 // server.js
 const express = require('express');
 const bodyParser = require('body-parser');
@@ -353,8 +352,6 @@ app.post('/api/group/exit', async (req, res) => {
     res.status(500).json({ message: "Error exiting group", error: err.message });
   }
 });
-
-
 // --------------------- START SERVER ---------------------
 const PORT = 5000;
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
