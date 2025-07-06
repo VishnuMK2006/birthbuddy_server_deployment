@@ -371,6 +371,40 @@ app.post('/api/group/exit', async (req, res) => {
   }
 });
 
+
+// --------------------- DELETE PRIVATE USER ---------------------
+app.delete('/api/private/user/:userId', async (req, res) => {
+  try {
+    const { userId } = req.params;
+
+    // Validate ObjectId
+    if (!mongoose.Types.ObjectId.isValid(userId)) {
+      return res.status(400).json({ message: "Invalid private user ID" });
+    }
+
+    // Check if user exists
+    const privateUser = await PrivateUser.findById(userId);
+    if (!privateUser) {
+      return res.status(404).json({ message: "Private user not found" });
+    }
+
+    // Remove from all private groups
+    await PrivateGroup.updateMany(
+      { "members.privateUserId": userId },
+      { $pull: { members: { privateUserId: userId } } }
+    );
+
+    // Delete the private user
+    await PrivateUser.findByIdAndDelete(userId);
+
+    res.json({ success: true, message: "Private user deleted and removed from all groups" });
+  } catch (err) {
+    console.error("[Delete Private User Error]", err.message);
+    res.status(500).json({ message: "Error deleting private user", error: err.message });
+  }
+});
+
+
 // --------------------- START SERVER ---------------------
 const PORT = 5000;
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
