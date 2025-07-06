@@ -150,6 +150,26 @@ app.get('/api/private-user/:mobile', async (req, res) => {
     res.status(500).json({ message: 'Server error', error: err.message });
   }
 });
+//fetch the private user details based on the object id
+app.get('/api/private/user/:userId', async (req, res) => {
+  try {
+    const { userId } = req.params;
+    if (!mongoose.Types.ObjectId.isValid(userId)) {
+      return res.status(400).json({ message: "Invalid user ID" });
+    }
+
+    const user = await PrivateUser.findById(userId);
+
+    if (!user) {
+      return res.status(404).json({ message: "Private user not found" });
+    }
+
+    res.json({ success: true, user });
+  } catch (err) {
+    console.error("[Fetch Private User Error]", err.message);
+    res.status(500).json({ message: "Error fetching private user", error: err.message });
+  }
+});
 
 
 // --------------------- PUBLIC GROUP ---------------------
@@ -300,7 +320,7 @@ app.post('/api/public/add/:groupId/:userId', async (req, res) => {
 });
 
 // --------------------- EDIT PRIVATE USER ---------------------
-app.put('/api/private/edit/:groupId/:userId', async (req, res) => {
+app.put('/api/private/edit/:userId', async (req, res) => {
   try {
     const updated = await PrivateUser.findByIdAndUpdate(req.params.userId, req.body, { new: true });
     res.json({ message: 'Private user updated', user: updated });
